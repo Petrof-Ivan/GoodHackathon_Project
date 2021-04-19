@@ -20,8 +20,8 @@ dispatcher = updater.dispatcher
 
 
 def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a vsratiy bot!!! "
-                                                                    "You can past your feedback here! Type and CRY!")
+    context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a vsratiy bot, yopta!!! "
+                                                                    "You can past your feedback here! Type and CRY, yopta!")
 
 
 start_handler = CommandHandler('start', start)
