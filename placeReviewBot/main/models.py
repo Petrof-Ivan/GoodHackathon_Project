@@ -24,4 +24,4 @@ class Review(models.Model):
 
 
 class SuperUser(models.Model):
-    username = models.TextField(verbose_name='Telegram username (like @user)', unique=True)
+    username = models.TextField(verbose_name='Telegram username without @', unique=True)

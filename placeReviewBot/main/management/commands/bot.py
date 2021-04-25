@@ -8,7 +8,7 @@ import logging
 import qrcode
 from PIL import Image
 from io import BytesIO
-from main.models import Review, Place
+from main.models import Review, Place, SuperUser
 
 # Enable logging
 logging.basicConfig(
@@ -45,7 +45,6 @@ def handle_message(update : Update, context: CallbackContext):
 
 def start(update: Update, _: CallbackContext) -> None:
     user = update.message.from_user
-    main_keyboard = []
     keyboard = [
         [
             InlineKeyboardButton("Оставить отзыв", callback_data='1'),
@@ -59,14 +58,13 @@ def start(update: Update, _: CallbackContext) -> None:
         ],
         [InlineKeyboardButton("Добавить место", callback_data='3')],
     ]
-    text = ' '
     admin_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории.\n ' \
                  'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n' \
                  'Для Вас доступна панель Админа. Можете добавить место самостоятельно!\n\n'
     user_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' \
                 'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n',
 
-    if user.username == 'voskiy':
+    if SuperUser.objects.filter(username=user.username):
         main_keyboard = super_keyboard
         text = admin_text
     else:
@@ -136,6 +134,7 @@ def admin(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get place from ADMIN %s: %s", user.first_name, update.message.text)
     print("into admin function")
+    Place.objects.create(name=update.message.text)
     update.message.reply_text(text=f"Отлично. Название пришло, добавляю, {update.message.text}. "
                                    f"Можете вернуться и оставить отзыв, или прочитать. Нажмите /start",
                               reply_markup=ReplyKeyboardRemove(),
