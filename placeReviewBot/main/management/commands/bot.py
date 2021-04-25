@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, \
+    CallbackQueryHandler
 from telegram.utils.request import Request
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 import logging
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 FEEDBACK, PHOTO, LOCATION = range(3)
 
-#simple error handler
+
+# simple error handler
 def log_errors(f):
     def inner(*args, **kwargs):
         try:
@@ -23,16 +25,17 @@ def log_errors(f):
             error_message = f'Exception!! {e}'
             print(error_message)
             raise e
+
     return inner
 
 
 @log_errors
-def handle_message(update : Update, context: CallbackContext):
+def handle_message(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     text = update.message.text
 
     reply_text = f'Chat id = {chat_id}\n\n message = {text}'
-    update.message.reply_text(text = reply_text)
+    update.message.reply_text(text=reply_text)
 
 
 def start(update: Update, _: CallbackContext) -> None:
@@ -66,7 +69,6 @@ def feedback(update: Update, _: CallbackContext) -> int:
     return PHOTO
 
 
-
 def button(update: Update, _: CallbackContext) -> None:
     query = update.callback_query
 
@@ -83,6 +85,7 @@ def button(update: Update, _: CallbackContext) -> None:
         query.edit_message_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной территории.\n"
                                      f" Нажмите /start чтобы начать сначала или /cancel чтобы закончи ть разговор")
         return FEEDBACK
+
 
 def photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
@@ -174,14 +177,14 @@ class Command(BaseCommand):
         dispatcher.add_handler(conv_handler)
 
         # creating the bot
-        #bot = telegram.Bot(token=token, request=request)
+        # bot = telegram.Bot(token=token, request=request)
 
         # run this to see bot parameters
         # print(bot.get_me())
 
-        #updater = Updater(token=token, use_context=True)
-        #message_handler = MessageHandler(Filters.text, handle_message)
-        #updater.dispatcher.add_handler(message_handler)
+        # updater = Updater(token=token, use_context=True)
+        # message_handler = MessageHandler(Filters.text, handle_message)
+        # updater.dispatcher.add_handler(message_handler)
 
         updater.start_polling()
         updater.idle()
