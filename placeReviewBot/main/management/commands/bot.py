@@ -74,7 +74,6 @@ def feedback(update: Update, context: CallbackContext) -> int:
         author='Anonymuos',
         author_id=update.message.chat_id,
     )
-    context.update({'text': update.message.text, 'author_id': update.message.chat_id})
     update.message.reply_text(
         'Отлично. Теперь отправьте мне пожалуйста фото территории, '
         f'или нажмите /skip чтобы пропустить, {user.name}',
