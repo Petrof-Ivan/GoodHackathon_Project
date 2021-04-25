@@ -1,9 +1,14 @@
 from django.core.management.base import BaseCommand
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, \
+    CallbackQueryHandler
 from telegram.utils.request import Request
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 import logging
+import qrcode
+from PIL import Image
+from io import BytesIO
+from main.models import Review, Place
 
 # Enable logging
 logging.basicConfig(
@@ -14,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 FEEDBACK, PHOTO, LOCATION, ADMIN, START = range(5)
 
-#simple error handler
+
+# simple error handler
 def log_errors(f):
     def inner(*args, **kwargs):
         try:
@@ -23,6 +29,7 @@ def log_errors(f):
             error_message = f'Exception!! {e}'
             print(error_message)
             raise e
+
     return inner
 
 
@@ -81,16 +88,25 @@ def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав start")
 
 
-def feedback(update: Update, _: CallbackContext) -> int:
+def feedback(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get feedback of %s: %s", user.first_name, update.message.text)
+
+    p, _ = Place.objects.get_or_create(id=1)
+    Review.objects.create(
+        place=p,
+        text=update.message.text,
+        author='Anonymuos',
+        author_id=update.message.chat_id,
+    )
     update.message.reply_text(
         'Отлично. Теперь отправьте мне пожалуйста фото территории, '
-        'или нажмите /skip чтобы пропустить',
+        f'или нажмите /skip чтобы пропустить, {user.name}',
         reply_markup=ReplyKeyboardRemove(),
     )
 
     return PHOTO
+
 
 
 def button(update: Update, _: CallbackContext) -> int:
@@ -126,34 +142,35 @@ def admin(update: Update, _: CallbackContext) -> int:
                               )
     return ConversationHandler.END
 
-def photo(update: Update, _: CallbackContext) -> int:
+
+def create_qr_code(invite_link, place_name):
+    img = qrcode.make(f'{invite_link}/start={place_name}')
+    bio = BytesIO()
+    bio.name = 'image.jpeg'
+    img.save(bio, 'JPEG')
+    bio.seek(0)
+    return bio
+
+
+def photo(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
-    photo_file = update.message.photo[-1].get_file()
-    photo_file.download('user_photo.jpg')
     logger.info("Photo of %s: %s", user.first_name, 'user_photo.jpg')
-    update.message.reply_text(
-        'Отлично! Теперь отправьте мне пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
-    )
+    photo_file = update.message.photo[-1].get_file()
+    bio = BytesIO()
+    photo_file.download(out=bio)
+    bio.seek(0)
+    img = Image.open(bio)
 
-    return LOCATION
+    bio2 = BytesIO()
+    bio2.name = 'image.jpg'
+    img.save(bio2, optimize=True, quality=30)
+    bio2.seek(0)
+
+    r = Review.objects.filter(author_id=update.message.chat_id).last()
+    r.photo = Image.open(bio2).tobytes()
+    r.save(update_fields=['photo'])
 
 
-def skip_photo(update: Update, _: CallbackContext) -> int:
-    user = update.message.from_user
-    logger.info("User %s did not send a photo.", user.first_name)
-    update.message.reply_text(
-        'Что ж,,отправьте мне тогда пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
-    )
-
-    return LOCATION
-
-
-def location(update: Update, _: CallbackContext) -> int:
-    user = update.message.from_user
-    user_location = update.message.location
-    logger.info(
-        "Location of %s: %f / %f", user.first_name, user_location.latitude, user_location.longitude
-    )
     update.message.reply_text(
         'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
@@ -161,11 +178,11 @@ def location(update: Update, _: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def skip_location(update: Update, _: CallbackContext) -> int:
+def skip_photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
-    logger.info("User %s did not send a location.", user.first_name)
+    logger.info("User %s did not send a photo.", user.first_name)
     update.message.reply_text(
-        'Хорошо, будем работать с тем что есть) Я принял отзыв. Спасибо за потраченно время. '
+        'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
 
     return ConversationHandler.END
@@ -196,8 +213,8 @@ class Command(BaseCommand):
         # Get the dispatcher to register handlers
         dispatcher = updater.dispatcher
         # начало работы бота, начинаем с команды /start
-        #updater.dispatcher.add_handler(CommandHandler('start', start))
-        #updater.dispatcher.add_handler(CallbackQueryHandler(button))
+        # updater.dispatcher.add_handler(CommandHandler('start', start))
+        # updater.dispatcher.add_handler(CallbackQueryHandler(button))
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
@@ -206,10 +223,6 @@ class Command(BaseCommand):
                 ADMIN: [MessageHandler(Filters.text, admin)],
                 FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
-                LOCATION: [
-                    MessageHandler(Filters.location, location),
-                    CommandHandler('skip', skip_location),
-                ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
         )
@@ -217,14 +230,14 @@ class Command(BaseCommand):
         dispatcher.add_handler(conv_handler)
 
         # creating the bot
-        #bot = telegram.Bot(token=token, request=request)
+        # bot = telegram.Bot(token=token, request=request)
 
         # run this to see bot parameters
         # print(bot.get_me())
 
-        #updater = Updater(token=token, use_context=True)
-        #message_handler = MessageHandler(Filters.text, handle_message)
-        #updater.dispatcher.add_handler(message_handler)
+        # updater = Updater(token=token, use_context=True)
+        # message_handler = MessageHandler(Filters.text, handle_message)
+        # updater.dispatcher.add_handler(message_handler)
 
         updater.start_polling()
         updater.idle()
