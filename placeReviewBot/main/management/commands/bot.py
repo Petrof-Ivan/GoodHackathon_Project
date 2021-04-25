@@ -78,10 +78,11 @@ def button(update: Update, _: CallbackContext) -> None:
     if query.data == '2':
         query.edit_message_text(text=f"Пока этот раздел не доступен в демо версии бота."
                                      f" Возможно он появится позже, и Вы сможете читать комментарии"
-                                     f" Нажмите /start чтобы начать сначала")
+                                     f" Нажмите /start чтобы начать сначала или /cancel")
     if query.data == '1':
-        feedback
-
+        query.edit_message_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной территории.\n"
+                                     f" Нажмите /start чтобы начать сначала или /cancel чтобы закончи ть разговор")
+        return FEEDBACK
 
 def photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
@@ -112,7 +113,7 @@ def location(update: Update, _: CallbackContext) -> int:
         "Location of %s: %f / %f", user.first_name, user_location.latitude, user_location.longitude
     )
     update.message.reply_text(
-        'Maybe I can visit you sometime! At last, tell me something about yourself.'
+        'Maybe I can visit you sometime!'
     )
 
     return ConversationHandler.END
@@ -122,16 +123,8 @@ def skip_location(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a location.", user.first_name)
     update.message.reply_text(
-        'You seem a bit paranoid! At last, tell me something about yourself.'
+        'You seem a bit paranoid!'
     )
-
-    return ConversationHandler.END
-
-
-def bio(update: Update, _: CallbackContext) -> int:
-    user = update.message.from_user
-    logger.info("Bio of %s: %s", user.first_name, update.message.text)
-    update.message.reply_text('Thank you! I hope we can talk again some day.')
 
     return ConversationHandler.END
 
@@ -166,7 +159,7 @@ class Command(BaseCommand):
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
-            entry_points=[MessageHandler(Filters.text & ~Filters.command, feedback)],
+            entry_points=[CommandHandler('start', start)],
             states={
                 FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
