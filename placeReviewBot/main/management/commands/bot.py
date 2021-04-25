@@ -25,7 +25,7 @@ def log_errors(f):
             raise e
     return inner
 
-
+'''
 @log_errors
 def handle_message(update : Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -33,6 +33,7 @@ def handle_message(update : Update, context: CallbackContext):
 
     reply_text = f'Chat id = {chat_id}\n\n message = {text}'
     update.message.reply_text(text = reply_text)
+'''
 
 
 def start(update: Update, _: CallbackContext) -> None:
@@ -51,15 +52,15 @@ def start(update: Update, _: CallbackContext) -> None:
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать")
+    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав start")
 
 
 def feedback(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get feedback of %s: %s", user.first_name, update.message.text)
     update.message.reply_text(
-        'Круто. Теперь отправь мне пожалуйста фото территории, '
-        'или нажми /skip чтобы пропустить',
+        'Отлично. Теперь отправьте мне пожалуйста фото территории, '
+        'или нажмите /skip чтобы пропустить',
         reply_markup=ReplyKeyboardRemove(),
     )
 
@@ -67,7 +68,7 @@ def feedback(update: Update, _: CallbackContext) -> int:
 
 
 
-def button(update: Update, _: CallbackContext) -> None:
+def button(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
 
     # CallbackQueries need to be answered, even if no notification to the user is needed
@@ -84,13 +85,14 @@ def button(update: Update, _: CallbackContext) -> None:
                                      f" Нажмите /start чтобы начать сначала или /cancel чтобы закончи ть разговор")
         return FEEDBACK
 
+
 def photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     photo_file = update.message.photo[-1].get_file()
     photo_file.download('user_photo.jpg')
     logger.info("Photo of %s: %s", user.first_name, 'user_photo.jpg')
     update.message.reply_text(
-        'Gorgeous! Now, send me your location please, or send /skip if you don\'t want to.'
+        'Отлично! Теперь отправьте мне пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
     )
 
     return LOCATION
@@ -100,7 +102,7 @@ def skip_photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a photo.", user.first_name)
     update.message.reply_text(
-        'I bet you look great! Now, send me your location please, or send /skip.'
+        'Что ж,,отправьте мне тогда пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
     )
 
     return LOCATION
@@ -113,7 +115,7 @@ def location(update: Update, _: CallbackContext) -> int:
         "Location of %s: %f / %f", user.first_name, user_location.latitude, user_location.longitude
     )
     update.message.reply_text(
-        'Maybe I can visit you sometime!'
+        'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
 
     return ConversationHandler.END
@@ -123,7 +125,7 @@ def skip_location(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a location.", user.first_name)
     update.message.reply_text(
-        'You seem a bit paranoid!'
+        'Хорошо, будем работать с тем что есть) Я принял отзыв. Спасибо за потраченно время. '
     )
 
     return ConversationHandler.END
@@ -133,7 +135,7 @@ def cancel(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text(
-        'Bye! I hope we can talk again some day.', reply_markup=ReplyKeyboardRemove()
+        'Хорошо, попробуем пообщаться в другой раз', reply_markup=ReplyKeyboardRemove()
     )
 
     return ConversationHandler.END
@@ -159,12 +161,12 @@ class Command(BaseCommand):
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', start)],
+            entry_points=[MessageHandler(Filters.text & ~Filters.command, feedback)],
             states={
                 FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
                 LOCATION: [
-                    MessageHandler(Filters.text & Filters.location, location),
+                    MessageHandler(Filters.location, location),
                     CommandHandler('skip', skip_location),
                 ]
             },
