@@ -5,11 +5,11 @@ from .forms import PlaceForm, ReviewForm
 
 @admin.register(Place)
 class PlaceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'code')
+    list_display = ('id', 'name')
     form = PlaceForm
 
 
 @admin.register(Review)
 class PlaceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'place', 'text', 'author')
+    list_display = ('id', 'place', 'text', 'author', 'photo', 'created_at')
     form = ReviewForm
