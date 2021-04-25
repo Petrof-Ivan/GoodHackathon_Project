@@ -63,18 +63,10 @@ def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав start")
 
 
-def create_qr_code(place_name, bot_name):
-    img = qrcode.make(f'https://t.me/{bot_name}/start={place_name}')
-    bio = BytesIO()
-    bio.name = 'image.jpeg'
-    img.save(bio, 'JPEG')
-    bio.seek(0)
-    return bio
-
-
 def feedback(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get feedback of %s: %s", user.first_name, update.message.text)
+
     p, _ = Place.objects.get_or_create(id=1)
     Review.objects.create(
         place=p,
@@ -82,6 +74,7 @@ def feedback(update: Update, context: CallbackContext) -> int:
         author='Anonymuos',
         author_id=update.message.chat_id,
     )
+    context.update({'text': update.message.text, 'author_id': update.message.chat_id})
     update.message.reply_text(
         'Отлично. Теперь отправьте мне пожалуйста фото территории, '
         f'или нажмите /skip чтобы пропустить, {user.name}',
@@ -109,34 +102,34 @@ def button(update: Update, _: CallbackContext) -> int:
         return FEEDBACK
 
 
-def photo(update: Update, _: CallbackContext) -> int:
+def create_qr_code(invite_link, place_name):
+    img = qrcode.make(f'{invite_link}/start={place_name}')
+    bio = BytesIO()
+    bio.name = 'image.jpeg'
+    img.save(bio, 'JPEG')
+    bio.seek(0)
+    return bio
+
+
+def photo(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
-    photo_file = update.message.photo[-1].get_file()
-    photo_file.download('user_photo.jpg')
     logger.info("Photo of %s: %s", user.first_name, 'user_photo.jpg')
-    update.message.reply_text(
-        'Отлично! Теперь отправьте мне пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
-    )
+    photo_file = update.message.photo[-1].get_file()
+    bio = BytesIO()
+    photo_file.download(out=bio)
+    bio.seek(0)
+    img = Image.open(bio)
 
-    return LOCATION
+    bio2 = BytesIO()
+    bio2.name = 'image.jpg'
+    img.save(bio2, optimize=True, quality=30)
+    bio2.seek(0)
+
+    r = Review.objects.filter(author_id=update.message.chat_id).last()
+    r.photo = Image.open(bio2).tobytes()
+    r.save(update_fields=['photo'])
 
 
-def skip_photo(update: Update, _: CallbackContext) -> int:
-    user = update.message.from_user
-    logger.info("User %s did not send a photo.", user.first_name)
-    update.message.reply_text(
-        'Что ж,,отправьте мне тогда пожалуйста свое местоположение или нажмите /skip для того чтобы пропустить'
-    )
-
-    return LOCATION
-
-
-def location(update: Update, _: CallbackContext) -> int:
-    user = update.message.from_user
-    user_location = update.message.location
-    logger.info(
-        "Location of %s: %f / %f", user.first_name, user_location.latitude, user_location.longitude
-    )
     update.message.reply_text(
         'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
@@ -144,11 +137,11 @@ def location(update: Update, _: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def skip_location(update: Update, _: CallbackContext) -> int:
+def skip_photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
-    logger.info("User %s did not send a location.", user.first_name)
+    logger.info("User %s did not send a photo.", user.first_name)
     update.message.reply_text(
-        'Хорошо, будем работать с тем что есть) Я принял отзыв. Спасибо за потраченно время. '
+        'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
 
     return ConversationHandler.END
@@ -188,10 +181,6 @@ class Command(BaseCommand):
             states={
                 FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
-                LOCATION: [
-                    MessageHandler(Filters.location, location),
-                    CommandHandler('skip', skip_location),
-                ]
             },
             fallbacks=[CommandHandler('cancel', cancel)],
         )

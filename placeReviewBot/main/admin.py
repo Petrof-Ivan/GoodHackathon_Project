@@ -11,7 +11,7 @@ class PlaceAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class PlaceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'place', 'text', 'author', 'author_id', 'photo', 'created_at')
+    list_display = ('id', 'place', 'text', 'author', 'author_id', 'created_at')
     form = ReviewForm
 
 
