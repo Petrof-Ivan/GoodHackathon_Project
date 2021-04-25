@@ -12,7 +12,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-FEEDBACK, PHOTO, LOCATION = range(3)
+FEEDBACK, PHOTO, LOCATION, ADMIN, START = range(5)
 
 #simple error handler
 def log_errors(f):
@@ -25,7 +25,7 @@ def log_errors(f):
             raise e
     return inner
 
-'''
+
 @log_errors
 def handle_message(update : Update, context: CallbackContext):
     chat_id = update.message.chat_id
@@ -33,23 +33,49 @@ def handle_message(update : Update, context: CallbackContext):
 
     reply_text = f'Chat id = {chat_id}\n\n message = {text}'
     update.message.reply_text(text = reply_text)
-'''
+
 
 
 def start(update: Update, _: CallbackContext) -> None:
+    user = update.message.from_user
+    main_keyboard = []
     keyboard = [
         [
             InlineKeyboardButton("Оставить отзыв", callback_data='1'),
             InlineKeyboardButton("Почитать отзывы", callback_data='2'),
         ],
     ]
+    super_keyboard = [
+        [
+            InlineKeyboardButton("Оставить отзыв", callback_data='1'),
+            InlineKeyboardButton("Почитать отзывы", callback_data='2'),
+        ],
+        [InlineKeyboardButton("Добавить место", callback_data='3')],
+    ]
+    text = ' '
+    admin_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории.\n ' \
+                 'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n' \
+                 'Для Вас доступна панель Админа. Можете добавить место самостоятельно!\n\n'
+    user_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' \
+                'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n',
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    if user.username == 'voskiy':
+        main_keyboard = super_keyboard
+        text = admin_text
+    else:
+        main_keyboard = keyboard
+        text = user_text
 
-    update.message.reply_text('Привет, я бот который поможет оставить отзыв о благоустроенной территории. '
-                              'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n',
-                              reply_markup=reply_markup)
+    reply_markup = InlineKeyboardMarkup(main_keyboard)
+    update.message.reply_text(text, reply_markup=reply_markup)
 
+'''
+def start_dialog(update: Update, _: CallbackContext) -> int:
+    user = update.message.from_user
+    logger.info("Get started dialog with of %s: %s", user.first_name, update.message.text)
+    update.message.reply_text('Что ж, давайте начнем!', reply_markup=ReplyKeyboardRemove())
+    return START
+'''
 
 def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав start")
@@ -67,7 +93,6 @@ def feedback(update: Update, _: CallbackContext) -> int:
     return PHOTO
 
 
-
 def button(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
 
@@ -80,11 +105,26 @@ def button(update: Update, _: CallbackContext) -> int:
         query.edit_message_text(text=f"Пока этот раздел не доступен в демо версии бота."
                                      f" Возможно он появится позже, и Вы сможете читать комментарии"
                                      f" Нажмите /start чтобы начать сначала или /cancel")
-    if query.data == '1':
+    elif query.data == '1':
         query.edit_message_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной территории.\n"
                                      f" Нажмите /start чтобы начать сначала или /cancel чтобы закончи ть разговор")
         return FEEDBACK
+    elif query.data == '3':
+        query.edit_message_text(
+            text=f"Ok. Вы админ и вы хотите добавить место. Напишите название вашего места\n"
+                 f" Нажмите /start чтобы начать сначала или /cancel чтобы закончить разговор")
+        return ADMIN
 
+
+def admin(update: Update, _: CallbackContext) -> int:
+    user = update.message.from_user
+    logger.info("Get place from ADMIN %s: %s", user.first_name, update.message.text)
+    print("into admin function")
+    update.message.reply_text(text=f"Отлично. Название пришло, добавляю, {update.message.text}. "
+                                   f"Можете вернуться и оставить отзыв, или прочитать. Нажмите /start",
+                              reply_markup=ReplyKeyboardRemove(),
+                              )
+    return ConversationHandler.END
 
 def photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
@@ -156,13 +196,14 @@ class Command(BaseCommand):
         # Get the dispatcher to register handlers
         dispatcher = updater.dispatcher
         # начало работы бота, начинаем с команды /start
-        updater.dispatcher.add_handler(CommandHandler('start', start))
-        updater.dispatcher.add_handler(CallbackQueryHandler(button))
+        #updater.dispatcher.add_handler(CommandHandler('start', start))
+        #updater.dispatcher.add_handler(CallbackQueryHandler(button))
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
-            entry_points=[MessageHandler(Filters.text & ~Filters.command, feedback)],
+            entry_points=[(CommandHandler('start', start)), CallbackQueryHandler(button)],
             states={
+                ADMIN: [MessageHandler(Filters.text, admin)],
                 FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
                 LOCATION: [
