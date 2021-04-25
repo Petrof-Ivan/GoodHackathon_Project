@@ -26,13 +26,14 @@ def log_errors(f):
     return inner
 
 
-@log_errors
+'''@log_errors
 def handle_message(update : Update, context: CallbackContext):
     chat_id = update.message.chat_id
     text = update.message.text
 
     reply_text = f'Chat id = {chat_id}\n\n message = {text}'
     update.message.reply_text(text = reply_text)
+'''
 
 
 def start(update: Update, _: CallbackContext) -> None:
@@ -51,7 +52,8 @@ def start(update: Update, _: CallbackContext) -> None:
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать")
+    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав /start. "
+                              "Этот бот создан для сбора отзывов о благоустройстве территорий.")
 
 
 def feedback(update: Update, _: CallbackContext) -> int:
@@ -66,8 +68,8 @@ def feedback(update: Update, _: CallbackContext) -> int:
     return PHOTO
 
 
-
-def button(update: Update, _: CallbackContext) -> None:
+@log_errors
+def button(update: Update, _: CallbackContext) -> int:
     query = update.callback_query
 
     # CallbackQueries need to be answered, even if no notification to the user is needed
@@ -78,34 +80,36 @@ def button(update: Update, _: CallbackContext) -> None:
     if query.data == '2':
         query.edit_message_text(text=f"Пока этот раздел не доступен в демо версии бота."
                                      f" Возможно он появится позже, и Вы сможете читать комментарии"
-                                     f" Нажмите /start чтобы начать сначала или /cancel")
-    if query.data == '1':
+                                     f" Нажмите /start чтобы начать сначала или /cancel чтобы завершить разговор")
+    elif query.data == '1':
         query.edit_message_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной территории.\n"
-                                     f" Нажмите /start чтобы начать сначала или /cancel чтобы закончи ть разговор")
+                                     f"Нажмите /start чтобы начать сначала или /cancel чтобы закончить разговор")
         return FEEDBACK
 
+
+@log_errors
 def photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     photo_file = update.message.photo[-1].get_file()
     photo_file.download('user_photo.jpg')
     logger.info("Photo of %s: %s", user.first_name, 'user_photo.jpg')
     update.message.reply_text(
-        'Gorgeous! Now, send me your location please, or send /skip if you don\'t want to.'
+        'Отлично! А сейчас отправьте нам пожалуйста свое местоположение или нажмите /skip чтобы пропустить'
     )
 
     return LOCATION
 
-
+@log_errors
 def skip_photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a photo.", user.first_name)
     update.message.reply_text(
-        'I bet you look great! Now, send me your location please, or send /skip.'
+        'Нам бы помолгло фото, но что поделать) Отправьте пожалуйста свое местоположение, или нажмите /skip.'
     )
 
     return LOCATION
 
-
+@log_errors
 def location(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     user_location = update.message.location
@@ -113,27 +117,27 @@ def location(update: Update, _: CallbackContext) -> int:
         "Location of %s: %f / %f", user.first_name, user_location.latitude, user_location.longitude
     )
     update.message.reply_text(
-        'Maybe I can visit you sometime!'
+        'Отлично, отзыв получен, Спасибо!'
     )
 
     return ConversationHandler.END
 
-
+@log_errors
 def skip_location(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a location.", user.first_name)
     update.message.reply_text(
-        'You seem a bit paranoid!'
+        'Хорошо, мы и без локации добавим ваш отзыв, Спасибо.'
     )
 
     return ConversationHandler.END
 
-
+@log_errors
 def cancel(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text(
-        'Bye! I hope we can talk again some day.', reply_markup=ReplyKeyboardRemove()
+        'Да, на сегодня пожалуй хватит. Увидимся в следующий раз?)', reply_markup=ReplyKeyboardRemove()
     )
 
     return ConversationHandler.END
@@ -142,6 +146,7 @@ def cancel(update: Update, _: CallbackContext) -> int:
 class Command(BaseCommand):
     help = 'Telegram-bot'
 
+    @log_errors
     def handle(self, *args, **options):
         request = Request(connect_timeout=0.5, read_timeout=1.0)
 
@@ -159,12 +164,12 @@ class Command(BaseCommand):
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', start)],
+            entry_points=[MessageHandler(Filters.text, feedback)],
             states={
-                FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback)],
+                FEEDBACK: [MessageHandler(Filters.text, feedback)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
                 LOCATION: [
-                    MessageHandler(Filters.text & Filters.location, location),
+                    MessageHandler(Filters.location, location),
                     CommandHandler('skip', skip_location),
                 ]
             },
