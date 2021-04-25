@@ -5,6 +5,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from telegram.utils.request import Request
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 import logging
+import qrcode
+from PIL import Image
 
 # Enable logging
 logging.basicConfig(
@@ -37,7 +39,6 @@ def handle_message(update: Update, context: CallbackContext):
     reply_text = f'Chat id = {chat_id}\n\n message = {text}'
     update.message.reply_text(text=reply_text)
 
-
 def start(update: Update, _: CallbackContext) -> None:
     keyboard = [
         [
@@ -57,7 +58,7 @@ def help_command(update: Update, _: CallbackContext) -> None:
     update.message.reply_text("Пожалуйста, выберите что вы хотите сделать")
 
 
-def feedback(update: Update, _: CallbackContext) -> int:
+def feedback(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get feedback of %s: %s", user.first_name, update.message.text)
     update.message.reply_text(
