@@ -84,7 +84,7 @@ def feedback(update: Update, context: CallbackContext) -> int:
     )
     update.message.reply_text(
         'Отлично. Теперь отправьте мне пожалуйста фото территории, '
-        'или нажмите /skip чтобы пропустить',
+        f'или нажмите /skip чтобы пропустить, {user.name}',
         reply_markup=ReplyKeyboardRemove(),
     )
 
