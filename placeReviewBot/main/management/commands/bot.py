@@ -243,9 +243,8 @@ def show_reviews(update: Update, context: CallbackContext):
                 bio.seek(0)
                 context.bot.sendPhoto(update.message.chat_id, bio)
     else:
-        update.message.reply_text(
-            f'Не вижу отзывов об этом метсе'
-        )
+        update.message.reply_text(f'Не вижу отзывов об этом метсе')
+    update.message.reply_text('Можете нажать /start чтобы начать с начала')
     return ConversationHandler.END
 
 
