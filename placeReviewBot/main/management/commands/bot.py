@@ -228,7 +228,8 @@ def show_reviews(update: Update, context: CallbackContext):
     place_name = update.message.text.upper()
     p = Place.objects.filter(name=place_name).last()
     if p:
-        for review in Review.objects.filter(place=p).iterator():
+        it = Review.objects.filter(place=p).iterator()
+        for review in it:
             # if review.photo:
             update.message.reply_text(f'-'*100)
             update.message.reply_text(f'Автор: {review.author}')
@@ -242,8 +243,11 @@ def show_reviews(update: Update, context: CallbackContext):
                 img.save(bio)
                 bio.seek(0)
                 context.bot.sendPhoto(update.message.chat_id, bio)
+        else:
+            update.message.reply_text(f'Об этом метсе пока нет отзывов!')
+
     else:
-        update.message.reply_text(f'Не вижу отзывов об этом метсе')
+        update.message.reply_text(f'Извините, не знаю такого места')
     update.message.reply_text('Можете нажать /start чтобы начать с начала')
     return ConversationHandler.END
 
