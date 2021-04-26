@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 import telegram
+from statsmodels.compat import numpy
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, \
     CallbackQueryHandler
 from telegram.utils.request import Request
@@ -17,7 +18,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-FEEDBACK, PHOTO, LOCATION, ADMIN, START, FIND_PLACE_TO_REVIEW = range(6)
+FEEDBACK, PHOTO, LOCATION, ADMIN, START, FIND_PLACE_TO_REVIEW, SHOW_REVIEWS = range(7)
+_place = ''
 
 
 # simple error handler
@@ -44,39 +46,39 @@ def handle_message(update: Update, context: CallbackContext):
 
 def start(update: Update, callback: CallbackContext) -> None:
     user = update.message.from_user
-    superuser = bool(SuperUser.objects.filter(username=user.username))
-    if callback.args and not superuser:
-        user_text = f'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' + \
-                    f'Ты хочешь оставить отзыв оюб этом месте: {callback.args}, верно?'
-        user_keyboard = [
-            [
-                InlineKeyboardButton("Да", callback_data='4'),
-                InlineKeyboardButton("Нет", callback_data='5'),
-            ],
-        ]
-        reply_markup = InlineKeyboardMarkup(user_keyboard)
-        update.message.reply_text(user_text, reply_markup=reply_markup)
-
-    elif not superuser:
+    # superuser = bool(SuperUser.objects.filter(username=user.username))
+    superuser = True
+    if not superuser and not callback.args:
         user_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' + \
                     'Напиши название места, о котором ты хочешь оставить отзыв.' + \
                     ' Набери /cancel чтобы перестать со мной общаться\n\n'
 
         update.message.reply_text(user_text)
         return FIND_PLACE_TO_REVIEW
+    text = ''
+    keyboard = None
+    if not superuser:
+        text = f'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' + \
+                    f'Ты хочешь оставить отзыв оюб этом месте: {callback.args}, верно?'
+        keyboard = [
+            [
+                InlineKeyboardButton("Да", callback_data='4'),
+                InlineKeyboardButton("Нет", callback_data='5'),
+            ],
+        ]
     else:
-        super_keyboard = [
+        keyboard = [
             [
                 InlineKeyboardButton("Оставить отзыв", callback_data='1'),
                 InlineKeyboardButton("Почитать отзывы", callback_data='2'),
             ],
             [InlineKeyboardButton("Добавить место", callback_data='3')],
         ]
-        admin_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории.\n ' + \
+        text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории.\n ' + \
                      'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n' + \
                      'Для Вас доступна панель Админа. Можете добавить место самостоятельно!\n\n'
-        reply_markup = InlineKeyboardMarkup(super_keyboard)
-        update.message.reply_text(admin_text, reply_markup=reply_markup)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text(text, reply_markup=reply_markup)
 
 
 def find_place_to_review(update: Update, context: CallbackContext):
@@ -85,6 +87,8 @@ def find_place_to_review(update: Update, context: CallbackContext):
         update.message.reply_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной "
                                        f"территории.\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи "
                                        f"ть разговор")
+        global _place
+        _place = place
         return FEEDBACK
     update.message.reply_text(text=f"Извините, не знаю такого места. Поробуйте еще раз"
                                    f"\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи "
@@ -100,20 +104,24 @@ def feedback(update: Update, context: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("Get feedback of %s: %s", user.first_name, update.message.text)
 
-    p, _ = Place.objects.get_or_create(id=1)
-    Review.objects.create(
-        place=p,
-        text=update.message.text,
-        author=user.full_name,
-        author_id=update.message.chat_id,
-    )
-    update.message.reply_text(
-        'Отлично. Теперь отправьте мне пожалуйста фото территории, '
-        f'или нажмите /skip чтобы пропустить, {user.full_name}',
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-    return PHOTO
+    p = Place.objects.get(name=_place)
+    if p:
+        Review.objects.create(
+            place=p,
+            text=update.message.text,
+            author=user.full_name,
+            author_id=update.message.chat_id,
+        )
+        update.message.reply_text(
+            'Отлично. Теперь отправьте мне пожалуйста фото территории, '
+            f'или нажмите /skip чтобы пропустить, {user.full_name}',
+            reply_markup=ReplyKeyboardRemove())
+        return PHOTO
+    else:
+        update.message.reply_text(
+            'Извините, не знаю такого меса',
+            reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
 
 
 def button(update: Update, _: CallbackContext) -> int:
@@ -125,12 +133,11 @@ def button(update: Update, _: CallbackContext) -> int:
 
     query.edit_message_text(text=f"Selected option: {query.data}")
     if query.data == '2':
-        query.edit_message_text(text=f"Пока этот раздел не доступен в демо версии бота."
-                                     f" Возможно он появится позже, и Вы сможете читать комментарии"
-                                     f" Нажмите /start чтобы начать сначала или /cancel")
+        query.edit_message_text(text=f"Напишите название места, о котором хотите почитать отзывы.")
+        return SHOW_REVIEWS
     elif query.data == '1' or query.data == '5':
         query.edit_message_text(
-            text='Напиши название места, о котором ты хочешь оставить отзыв.' + \
+            text='Напишите название места, о котором вы хотите оставить отзыв.' + \
                  ' Набери /cancel чтобы перестать со мной общаться\n\n')
         return FIND_PLACE_TO_REVIEW
     elif query.data == '3':
@@ -212,6 +219,26 @@ def cancel(update: Update, _: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+def show_reviews(update: Update, context: CallbackContext):
+    place_name = update.message.text.upper()
+    p = Place.objects.filter(name=place_name).last()
+    if p:
+        for review in Review.objects.filter(place=p).iterator():
+            # if review.photo:
+            update.message.reply_text(f'-'*100)
+            update.message.reply_text(f'Автор: {review.author}')
+            update.message.reply_text(f'\n\nТекст: {review.text}')
+            if review.photo:
+                img = Image.frombytes('RGB', (1280, 1280), review.photo)
+                bio = BytesIO()
+                bio.name = 'image.jpg'
+                img.save(bio)
+                bio.seek(0)
+                context.bot.sendPhoto(update.message.chat_id, bio)
+    else:
+        update.message.reply_text(
+            f'Не вижу отзывов об этом метсе'
+        )
 class Command(BaseCommand):
     help = 'Telegram-bot'
 
@@ -232,14 +259,15 @@ class Command(BaseCommand):
         updater.dispatcher.add_handler(CommandHandler('help', help_command))
         # Add conversation handler with the states FEEDBACK, PHOTO, LOCATION
         conv_handler = ConversationHandler(
-            entry_points=[(CommandHandler('start', start, pass_user_data=True)),
-                          CallbackQueryHandler(button, pass_user_data=True)],
+            entry_points=[(CommandHandler('start', start, pass_user_data=True, pass_chat_data=True)),
+                          CallbackQueryHandler(button, pass_user_data=True, pass_chat_data=True)],
             states={
                 ADMIN: [MessageHandler(Filters.text, admin_add_place)],
-                FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback, pass_user_data=True)],
+                FEEDBACK: [MessageHandler(Filters.text & ~Filters.command, feedback, pass_user_data=True, pass_chat_data=True)],
                 PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)],
                 FIND_PLACE_TO_REVIEW: [
-                    MessageHandler(Filters.text & ~Filters.command, find_place_to_review, pass_user_data=True)],
+                    MessageHandler(Filters.text & ~Filters.command, find_place_to_review, pass_user_data=True, pass_chat_data=True)],
+                SHOW_REVIEWS: [MessageHandler(Filters.text & ~Filters.command, show_reviews, pass_user_data=True, pass_chat_data=True)],
             },
             fallbacks=[CommandHandler('cancel', cancel)],
         )
