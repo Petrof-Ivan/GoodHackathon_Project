@@ -220,6 +220,8 @@ def cancel(update: Update, _: CallbackContext) -> int:
     update.message.reply_text(
         'Хорошо, попробуем пообщаться в другой раз', reply_markup=ReplyKeyboardRemove()
     )
+    update.message.reply_text('Можете нажать /start чтобы начать с начала')
+
 
     return ConversationHandler.END
 
@@ -228,9 +230,9 @@ def show_reviews(update: Update, context: CallbackContext):
     place_name = update.message.text.upper()
     p = Place.objects.filter(name=place_name).last()
     if p:
-        it = Review.objects.filter(place=p).iterator()
+        it, i = Review.objects.filter(place=p).iterator(), 0
         for review in it:
-            # if review.photo:
+            i += 1
             update.message.reply_text(f'-'*100)
             update.message.reply_text(f'Автор: {review.author}')
             update.message.reply_text(f'\n\nТекст: {review.text}')
@@ -243,7 +245,7 @@ def show_reviews(update: Update, context: CallbackContext):
                 img.save(bio)
                 bio.seek(0)
                 context.bot.sendPhoto(update.message.chat_id, bio)
-        else:
+        if i == 0:
             update.message.reply_text(f'Об этом метсе пока нет отзывов!')
 
     else:
@@ -256,7 +258,7 @@ class Command(BaseCommand):
     help = 'Telegram-bot'
 
     def handle(self, *args, **options):
-        request = Request(connect_timeout=0.5, read_timeout=1.0)
+        request = Request(connect_timeout=1.0, read_timeout=3.0)
 
         # reading telegram token
         f = open('token.txt')
@@ -286,16 +288,6 @@ class Command(BaseCommand):
         )
 
         dispatcher.add_handler(conv_handler)
-
-        # creating the bot
-        # bot = telegram.Bot(token=token, request=request)
-
-        # run this to see bot parameters
-        # print(bot.get_me())
-
-        # updater = Updater(token=token, use_context=True)
-        # message_handler = MessageHandler(Filters.text, handle_message)
-        # updater.dispatcher.add_handler(message_handler)
 
         updater.start_polling()
         updater.idle()
