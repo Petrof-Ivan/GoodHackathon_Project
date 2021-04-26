@@ -17,6 +17,8 @@ class Review(models.Model):
     author = models.TextField(verbose_name='Reviewer name')
     author_id = models.TextField(verbose_name='Reviewer id', default=0)
     photo = models.BinaryField(verbose_name='Photo', default=None, null=True)
+    photo_height = models.IntegerField(verbose_name='Photo height', default=None, null=True)
+    photo_width = models.IntegerField(verbose_name='Photo width', default=None, null=True)
     created_at = models.DateTimeField(verbose_name='Creation time', auto_now_add=True)
 
     def __str__(self):

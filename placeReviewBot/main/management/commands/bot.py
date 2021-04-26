@@ -121,6 +121,7 @@ def feedback(update: Update, context: CallbackContext) -> int:
         update.message.reply_text(
             'Извините, не знаю такого меса',
             reply_markup=ReplyKeyboardRemove())
+        update.message.reply_text('Можете нажать /start чтобы начать с начала')
         return ConversationHandler.END
 
 
@@ -189,12 +190,15 @@ def photo(update: Update, context: CallbackContext) -> int:
     bio2.seek(0)
 
     r = Review.objects.filter(author_id=update.message.chat_id).last()
-    r.photo = Image.open(bio2).tobytes()
-    r.save(update_fields=['photo'])
+    img = Image.open(bio2)
+    r.photo = img.tobytes()
+    r.photo_height = img.height
+    r.photo_width = img.width
 
-    update.message.reply_text(
-        'Ок. Я принял отзыв. Спасибо за потраченно время.'
-    )
+    r.save(update_fields=['photo', 'photo_height', 'photo_width'])
+
+    update.message.reply_text('Ок. Я принял отзыв. Спасибо за потраченно время.')
+    update.message.reply_text('Можете нажать /start чтобы начать с начала')
 
     return ConversationHandler.END
 
@@ -205,6 +209,7 @@ def skip_photo(update: Update, _: CallbackContext) -> int:
     update.message.reply_text(
         'Ок. Я принял отзыв. Спасибо за потраченно время.'
     )
+    update.message.reply_text('Можете нажать /start чтобы начать с начала')
 
     return ConversationHandler.END
 
@@ -229,7 +234,9 @@ def show_reviews(update: Update, context: CallbackContext):
             update.message.reply_text(f'Автор: {review.author}')
             update.message.reply_text(f'\n\nТекст: {review.text}')
             if review.photo:
-                img = Image.frombytes('RGB', (1280, 1280), review.photo)
+                width = review.photo_width if review.photo_width is not None else 1280
+                height = review.photo_height if review.photo_height is not None else 1280
+                img = Image.frombytes('RGB', (width, height), review.photo)
                 bio = BytesIO()
                 bio.name = 'image.jpg'
                 img.save(bio)
@@ -239,6 +246,9 @@ def show_reviews(update: Update, context: CallbackContext):
         update.message.reply_text(
             f'Не вижу отзывов об этом метсе'
         )
+    return ConversationHandler.END
+
+
 class Command(BaseCommand):
     help = 'Telegram-bot'
 
