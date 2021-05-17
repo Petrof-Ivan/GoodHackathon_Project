@@ -13,6 +13,7 @@ cd GoodHackathon_Project/
 pip3 install -r pip-requirements.txt
 
 # Setup the database
+python3 placeReviewBot/manage.py makemigrations
 python3 placeReviewBot/manage.py migrate
 
 # Add bot token
