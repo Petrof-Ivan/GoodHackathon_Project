@@ -12,5 +12,8 @@ ExecStart=/usr/bin/python3 /home/alkaizyr/GoodHackathon_Project/placeReviewBot/m
 RestartSec=10
 Restart=always
 
+StandardOutput=file:/home/alkaizyr/logs/bot_stdout.log
+StandardError=file:/home/alkaizyr/logs/bot_stderr.log
+
 [Install]
 WantedBy=multi-user.target
