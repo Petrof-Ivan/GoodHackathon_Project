@@ -263,6 +263,7 @@ class Command(BaseCommand):
         # reading telegram token
         f = open('token.txt')
         token = f.read()
+        token = token.replace("\n", "")
 
         updater = Updater(token)
 
