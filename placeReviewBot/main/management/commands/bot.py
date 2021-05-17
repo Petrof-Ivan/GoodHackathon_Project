@@ -49,17 +49,17 @@ def start(update: Update, callback: CallbackContext) -> None:
     # superuser = bool(SuperUser.objects.filter(username=user.username))
     superuser = True
     if not superuser and not callback.args:
-        user_text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' + \
-                    'Напиши название места, о котором ты хочешь оставить отзыв.' + \
-                    ' Набери /cancel чтобы перестать со мной общаться\n\n'
+        user_text = 'Привет! Я бот, который поможет оставить отзыв о благоустроенной территории. ' + \
+                    'Напишите название места, о котором хотите оставить отзыв.' + \
+                    ' Наберите /cancel чтобы перестать со мной общаться.\n\n'
 
         update.message.reply_text(user_text)
         return FIND_PLACE_TO_REVIEW
     text = ''
     keyboard = None
     if not superuser:
-        text = f'Привет, я бот который поможет оставить отзыв о благоустроенной территории. ' + \
-                    f'Ты хочешь оставить отзыв оюб этом месте: {callback.args}, верно?'
+        text = f'Привет! Я бот, который поможет оставить отзыв о благоустроенной территории. ' + \
+                    f'Вы хотите оставить отзыв об этом месте: {callback.args}, верно?'
         keyboard = [
             [
                 InlineKeyboardButton("Да", callback_data='4'),
@@ -74,8 +74,8 @@ def start(update: Update, callback: CallbackContext) -> None:
             ],
             [InlineKeyboardButton("Добавить место", callback_data='3')],
         ]
-        text = 'Привет, я бот который поможет оставить отзыв о благоустроенной территории.\n ' + \
-                     'Выбери что хочешь сделать: Набери /cancel чтобы перестать со мной общаться\n\n' + \
+        text = 'Привет! Я бот, который поможет оставить отзыв о благоустроенной территории.\n ' + \
+                     'Выберите, что хотите сделать: Наберите /cancel чтобы перестать со мной общаться.\n\n' + \
                      'Для Вас доступна панель Админа. Можете добавить место самостоятельно!\n\n'
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(text, reply_markup=reply_markup)
@@ -84,20 +84,20 @@ def start(update: Update, callback: CallbackContext) -> None:
 def find_place_to_review(update: Update, context: CallbackContext):
     place = Place.objects.filter(name=update.message.text.upper()).last()
     if place:
-        update.message.reply_text(text=f"Отлично. Напишите пожалуйста полный текст отзыва о благоустроенной "
-                                       f"территории.\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи "
-                                       f"ть разговор")
+        update.message.reply_text(text=f"Отлично. Напишите, пожалуйста, полный текст отзыва о благоустроенной "
+                                       f"территории.\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи"
+                                       f"ть разговор.")
         global _place
         _place = place
         return FEEDBACK
-    update.message.reply_text(text=f"Извините, не знаю такого места. Поробуйте еще раз"
-                                   f"\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи "
-                                   f"ть разговор")
+    update.message.reply_text(text=f"Извините, не знаю такого места. Попробуйте еще раз."
+                                   f"\n Нажмите /start чтобы начать сначала или /cancel чтобы закончи"
+                                   f"ть разговор.")
     return FIND_PLACE_TO_REVIEW
 
 
 def help_command(update: Update, _: CallbackContext) -> None:
-    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав start")
+    update.message.reply_text("Пожалуйста, выберите что вы хотите сделать нажав /start.")
 
 
 def feedback(update: Update, context: CallbackContext) -> int:
@@ -113,15 +113,15 @@ def feedback(update: Update, context: CallbackContext) -> int:
             author_id=update.message.chat_id,
         )
         update.message.reply_text(
-            'Отлично. Теперь отправьте мне пожалуйста фото территории, '
+            'Отлично. Теперь отправьте мне, пожалуйста, фото территории, '
             f'или нажмите /skip чтобы пропустить, {user.full_name}',
             reply_markup=ReplyKeyboardRemove())
         return PHOTO
     else:
         update.message.reply_text(
-            'Извините, не знаю такого меса',
+            'Извините, не знаю такого места',
             reply_markup=ReplyKeyboardRemove())
-        update.message.reply_text('Можете нажать /start чтобы начать с начала')
+        update.message.reply_text('Можете нажать /start чтобы начать сначала.')
         return ConversationHandler.END
 
 
@@ -139,12 +139,12 @@ def button(update: Update, _: CallbackContext) -> int:
     elif query.data == '1' or query.data == '5':
         query.edit_message_text(
             text='Напишите название места, о котором вы хотите оставить отзыв.' + \
-                 ' Набери /cancel чтобы перестать со мной общаться\n\n')
+                 ' Наберите /cancel чтобы перестать со мной общаться.\n\n')
         return FIND_PLACE_TO_REVIEW
     elif query.data == '3':
         query.edit_message_text(
-            text=f"Ok. Вы админ и вы хотите добавить место. Напишите название вашего места\n"
-                 f" Нажмите /start чтобы начать сначала или /cancel чтобы закончить разговор")
+            text=f"ОК. Вы админ и вы хотите добавить место. Напишите название вашего места.\n"
+                 f" Нажмите /start чтобы начать сначала или /cancel чтобы закончить разговор.")
         return ADMIN
     elif query.data == '4':
         return FEEDBACK
@@ -160,7 +160,7 @@ def admin_add_place(update: Update, context: CallbackContext) -> int:
                                    f"который нужно будет повесить на стенде: ")
     img = create_qr_code(f'https://t.me/{context.bot.name[1:]}', place_name)
     context.bot.sendPhoto(update.message.chat_id, img)
-    update.message.reply_text(text=f"Можете вернуться и оставить отзыв, или прочитать. Нажмите /start",
+    update.message.reply_text(text=f"Можете вернуться чтобы оставить или прочитать отзыв. Нажмите /start.",
                               reply_markup=ReplyKeyboardRemove(),
                               )
     return ConversationHandler.END
@@ -197,8 +197,8 @@ def photo(update: Update, context: CallbackContext) -> int:
 
     r.save(update_fields=['photo', 'photo_height', 'photo_width'])
 
-    update.message.reply_text('Ок. Я принял отзыв. Спасибо за потраченно время.')
-    update.message.reply_text('Можете нажать /start чтобы начать с начала')
+    update.message.reply_text('ОК. Я принял отзыв. Спасибо за потраченно время.')
+    update.message.reply_text('Можете нажать /start чтобы начать сначала.')
 
     return ConversationHandler.END
 
@@ -207,9 +207,9 @@ def skip_photo(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s did not send a photo.", user.first_name)
     update.message.reply_text(
-        'Ок. Я принял отзыв. Спасибо за потраченно время.'
+        'ОК. Я принял отзыв. Спасибо за потраченно время.'
     )
-    update.message.reply_text('Можете нажать /start чтобы начать с начала')
+    update.message.reply_text('Можете нажать /start чтобы начать сначала.')
 
     return ConversationHandler.END
 
@@ -218,9 +218,9 @@ def cancel(update: Update, _: CallbackContext) -> int:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text(
-        'Хорошо, попробуем пообщаться в другой раз', reply_markup=ReplyKeyboardRemove()
+        'Хорошо, попробуем пообщаться в другой раз.', reply_markup=ReplyKeyboardRemove()
     )
-    update.message.reply_text('Можете нажать /start чтобы начать с начала')
+    update.message.reply_text('Можете нажать /start чтобы начать сначала.')
 
 
     return ConversationHandler.END
@@ -246,11 +246,11 @@ def show_reviews(update: Update, context: CallbackContext):
                 bio.seek(0)
                 context.bot.sendPhoto(update.message.chat_id, bio)
         if i == 0:
-            update.message.reply_text(f'Об этом метсе пока нет отзывов!')
+            update.message.reply_text(f'Об этом месте пока нет отзывов!')
 
     else:
-        update.message.reply_text(f'Извините, не знаю такого места')
-    update.message.reply_text('Можете нажать /start чтобы начать с начала')
+        update.message.reply_text(f'Извините, не знаю такого места.')
+    update.message.reply_text('Можете нажать /start чтобы начать сначала.')
     return ConversationHandler.END
 
 
@@ -263,6 +263,7 @@ class Command(BaseCommand):
         # reading telegram token
         f = open('token.txt')
         token = f.read()
+        token = token.replace("\n", "")
 
         updater = Updater(token)
 

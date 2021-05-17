@@ -1,0 +1,51 @@
+# This is provisioning and deployment info for Google Cloud VM with Ubuntu 18.04 on board
+
+# Update and upgrade
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y python3-pip
+
+# Clone the repository
+git clone https://github.com/aostrouhhov/GoodHackathon_Project
+cd GoodHackathon_Project/
+
+# Install required Python packages
+pip3 install -r pip-requirements.txt
+
+# Setup the database
+python3 placeReviewBot/manage.py makemigrations
+python3 placeReviewBot/manage.py migrate
+
+# Add bot token
+echo "{TOKEN}" > placeReviewBot/token.txt
+
+# Setup Server and Bot services
+mkdir ~/logs
+sudo cp gcloud/bot-server.service /etc/systemd/system/
+sudo cp gcloud/bot.service /etc/systemd/system/
+
+sudo systemctl daemon-reload
+
+sudo systemctl enable bot-server
+sudo systemctl start bot-server
+
+sudo systemctl enable bot
+sudo systemctl start bot
+
+# Check status of the services when needed
+sudo systemctl status bot-server
+sudo systemctl status bot
+
+# Create superuser
+python3 placeReviewBot/manage.py createsuperuser
+
+# 1. Go to https://console.cloud.google.com/networking/firewalls and set
+#     firewall rules for google cloud project with the following properties:
+#         Target: all instances
+#         Direction: ingress
+#         Source IP ranges: 0.0.0.0/0
+#         Ports and protocols: allow all
+# 2. In 'settings.py' set ALLOWED_HOSTS = ["*"]
+# 3. Now you can access Django server from anywhere if it is running on
+#    0.0.0.0:[port].
+# 4. For example: http://35.228.246.70:5006/admin/main/place

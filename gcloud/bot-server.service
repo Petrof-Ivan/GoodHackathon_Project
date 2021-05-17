@@ -1,0 +1,19 @@
+[Unit]
+Description=Server for Telegram bot 'placeReviewBot'
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=alkaizyr
+WorkingDirectory=/home/alkaizyr/GoodHackathon_Project/placeReviewBot
+ExecStart=/usr/bin/python3 /home/alkaizyr/GoodHackathon_Project/placeReviewBot/manage.py runserver 0.0.0.0:5006
+
+RestartSec=10
+Restart=always
+
+StandardOutput=file:/home/alkaizyr/logs/bot-server_stdout.log
+StandardError=file:/home/alkaizyr/logs/bot-server_stderr.log
+
+[Install]
+WantedBy=multi-user.target
