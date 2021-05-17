@@ -19,6 +19,7 @@ python3 placeReviewBot/manage.py migrate
 echo "{TOKEN}" > placeReviewBot/token.txt
 
 # Setup Server and Bot services
+mkdir ~/logs
 sudo cp gcloud/bot-server.service /etc/systemd/system/
 sudo cp gcloud/bot.service /etc/systemd/system/
 
