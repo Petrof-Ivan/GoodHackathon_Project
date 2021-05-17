@@ -11,6 +11,7 @@ $ pip3 install -r ../pip-requirements.txt
 
 Setup the database:
 ```
+$ python3 manage.py makemigrations
 $ python3 manage.py migrate
 ```
 
