@@ -1,0 +1,16 @@
+[Unit]
+Description=Telegram bot 'placeReviewBot'
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=alkaizyr
+WorkingDirectory=/home/alkaizyr/GoodHackathon_Project/placeReviewBot
+ExecStart=/usr/bin/python3 /home/alkaizyr/GoodHackathon_Project/placeReviewBot/manage.py bot
+
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
